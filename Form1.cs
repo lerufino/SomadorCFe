@@ -8,6 +8,7 @@ namespace SomadorCFe
     {
         public string caminho = "";
         List<double> valoresVCfe = new List<double>();
+        List<string> cfesCancelados = new List<string>();
         public double soma = 0;
 
         public PrincipalForm()
@@ -21,7 +22,8 @@ namespace SomadorCFe
             if (fbdBrowserPasta.ShowDialog() == DialogResult.OK)
             {
                 caminho = fbdBrowserPasta.SelectedPath;
-                MessageBox.Show("Caminho selecionado!" + "\n" + caminho, "Opa!", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                lblCaminho.Text = caminho;
+                //MessageBox.Show("Caminho selecionado!" + "\n" + caminho, "Opa!", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
         }
         private void percorreSoma()
@@ -34,21 +36,39 @@ namespace SomadorCFe
                 XmlDocument doc = new XmlDocument();
                 doc.Load(file);
 
-                //Obtém elemtnos com a tag <vCfe>
-                XmlNodeList elementos = doc.GetElementsByTagName("vCFe");
-
-                // Itera sobre os elementos encontrados
-                foreach (XmlNode elemento in elementos)
+                //Procura cancelados e põe na lista
+                if (doc.DocumentElement.Name == "CFeCanc")
                 {
-                    // Obtém o valor da tag "<vCfe>"
-                    string valorString = elemento.InnerText;
+                    XmlNode infCFeNode = doc.SelectSingleNode("//infCFe");
+                    string idCancelado = infCFeNode.Attributes["chCanc"].Value;
 
-                    // Converte o valor para double
-                    if (double.TryParse(valorString, out double valorDouble)) { valoresVCfe.Add(valorDouble); }
+                    cfesCancelados.Add(idCancelado);
                 }
-                //Percorre lista e soma os valores
+
                 soma = 0;
-                foreach (double valor in valoresVCfe) { soma += valor; }
+
+                //Percorre novamente os arquivos ignorando os cancelados
+                foreach (string arquivo in arquivosXML)
+                {
+                    XmlDocument docu = new XmlDocument();
+                    docu.Load(arquivo);
+
+                    if (docu.DocumentElement.Name == "CFe")
+                    {
+                        XmlNode infCFeNode = docu.SelectSingleNode(".//infCFe");
+                        string idCFe = infCFeNode.Attributes["Id"].Value;
+
+                        if (!cfesCancelados.Contains(idCFe))
+                        {
+                            XmlNodeList elementos = docu.GetElementsByTagName("vCFe");
+                            foreach (XmlNode elemento in elementos)
+                            {
+                                string valorString = elemento.InnerText;
+                                if (double.TryParse(valorString, out double valorDouble)) { soma += valorDouble; }
+                            }
+                        }
+                    }
+                }
             }
         }
         private void btnCalcular_Click(object sender, EventArgs e)
